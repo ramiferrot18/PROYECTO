@@ -1,5 +1,5 @@
 export interface Proveedor {
-  idProveedor: number;
+  idProveedor?: number;  // Agrega ?
   nombreProveedor: string;
   contacto?: string;
   telefono?: string;

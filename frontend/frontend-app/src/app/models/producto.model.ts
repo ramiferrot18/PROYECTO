@@ -2,7 +2,7 @@ import { Categoria } from './categoria.model';
 import { Proveedor } from './proveedor.model';
 
 export interface Producto {
-  idProducto: number;
+  idProducto?: number;  // Agrega ?
   codigoBarras?: string;
   nombreProducto: string;
   descripcion?: string;
