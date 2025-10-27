@@ -1,17 +1,21 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Categoria } from '../models/categoria.model';
-import { BaseService } from './base.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root'  // Esto hace que el servicio esté disponible en toda la app
 })
-export class CategoriaService extends BaseService {
+export class CategoriaService {
+  private baseUrl = 'http://localhost:8080/api';
   private categoriaUrl = `${this.baseUrl}/categorias`;
 
-  constructor(http: HttpClient) {
-    super(http);
+  constructor(private http: HttpClient) { }
+
+  private getHeaders(): HttpHeaders {
+    return new HttpHeaders({
+      'Content-Type': 'application/json'
+    });
   }
 
   getCategorias(): Observable<Categoria[]> {
