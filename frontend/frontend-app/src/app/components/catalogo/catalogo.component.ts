@@ -1,26 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-
-interface Categoria {
-  idCategoria?: number;
-  nombreCategoria: string;
-  descripcion?: string;
-}
-
-interface Producto {
-  idProducto?: number;
-  nombreProducto: string;
-  descripcion?: string;
-  categoria: Categoria;
-  precioCompra: number;
-  precioVenta: number;
-  stockActual: number;
-  stockMinimo: number;
-  codigoBarras?: string;
-  unidadMedida?: string;
-}
+import { ProductoService, Producto, Categoria } from '../../services/producto.service';
+import { CategoriaService } from '../../services/categoria.service';
 
 @Component({
   selector: 'app-catalogo',
@@ -281,13 +263,16 @@ export class CatalogoComponent implements OnInit {
   productosFiltrados: Producto[] = [];
   categorias: Categoria[] = [];
   productoEdit: Producto = this.nuevoProductoVacio();
-  categoriaSeleccionadaId: string = ''; // Cambiado a string
+  categoriaSeleccionadaId: string = '';
   terminoBusqueda: string = '';
   categoriaFiltro: string = '';
   mostrarFormulario: boolean = false;
   cargando: boolean = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private productoService: ProductoService,
+    private categoriaService: CategoriaService
+  ) {}
 
   ngOnInit() {
     this.cargarDatos();
@@ -296,14 +281,11 @@ export class CatalogoComponent implements OnInit {
   cargarDatos() {
     this.cargando = true;
     
-    // Cargar categorías primero
-    this.http.get<Categoria[]>('http://localhost:8080/api/categorias').subscribe({
+    this.categoriaService.getCategorias().subscribe({
       next: (categorias) => {
         this.categorias = categorias;
-        console.log('Categorías cargadas:', categorias);
         
-        // Luego cargar productos
-        this.http.get<Producto[]>('http://localhost:8080/api/productos').subscribe({
+        this.productoService.getProductos().subscribe({
           next: (productos) => {
             this.productos = productos;
             this.productosFiltrados = [...productos];
@@ -336,9 +318,8 @@ export class CatalogoComponent implements OnInit {
     };
   }
 
-  // Método para formatear precios
   formatPrecio(precio: number): string {
-    return precio.toFixed(2);
+    return `$${precio.toFixed(2)}`;
   }
 
   filtrarProductos() {
@@ -368,76 +349,64 @@ export class CatalogoComponent implements OnInit {
   }
 
   guardarProducto() {
-  if (!this.formularioValido()) {
-    alert('Por favor completa todos los campos obligatorios correctamente');
-    return;
-  }
+    if (!this.formularioValido()) {
+      alert('Por favor completa todos los campos obligatorios correctamente');
+      return;
+    }
 
-  console.log('Categoría seleccionada ID:', this.categoriaSeleccionadaId, 'Tipo:', typeof this.categoriaSeleccionadaId);
+    const categoriaId = Number(this.categoriaSeleccionadaId);
+    const categoriaSeleccionada = this.categorias.find(
+      cat => cat.idCategoria === categoriaId
+    );
+    
+    if (!categoriaSeleccionada) {
+      alert('Error: No se pudo encontrar la categoría seleccionada. ID: ' + categoriaId);
+      return;
+    }
 
-  // Convertir a número y encontrar la categoría
-  const categoriaId = Number(this.categoriaSeleccionadaId);
-  const categoriaSeleccionada = this.categorias.find(
-    cat => cat.idCategoria === categoriaId
-  );
-  
-  if (!categoriaSeleccionada) {
-    alert('Error: No se pudo encontrar la categoría seleccionada. ID: ' + categoriaId);
-    return;
-  }
+    const datosProducto: Producto = {
+      nombreProducto: this.productoEdit.nombreProducto,
+      descripcion: this.productoEdit.descripcion || undefined,
+      categoria: categoriaSeleccionada,
+      precioCompra: this.productoEdit.precioCompra,
+      precioVenta: this.productoEdit.precioVenta,
+      stockActual: this.productoEdit.stockActual,
+      stockMinimo: this.productoEdit.stockMinimo || 5,
+      codigoBarras: this.productoEdit.codigoBarras || undefined,
+      unidadMedida: 'PIEZA'
+    };
 
-  console.log('Categoría encontrada:', categoriaSeleccionada);
-
-  // PREPARAR DATOS EXACTAMENTE COMO LOS ESPERA EL BACKEND
-  const datosProducto = {
-    nombreProducto: this.productoEdit.nombreProducto,
-    descripcion: this.productoEdit.descripcion || null,
-    categoria: {
-      idCategoria: categoriaSeleccionada.idCategoria
-    },
-    precioCompra: this.productoEdit.precioCompra,
-    precioVenta: this.productoEdit.precioVenta,
-    stockActual: this.productoEdit.stockActual,
-    stockMinimo: this.productoEdit.stockMinimo || 5,
-    codigoBarras: this.productoEdit.codigoBarras || null,
-    unidadMedida: 'PIEZA'
-  };
-
-  console.log('Datos a enviar al backend:', datosProducto);
-
-  if (this.productoEdit.idProducto) {
-    // EDITAR producto existente - ENVIAR SOLO LOS DATOS NECESARIOS
-    this.http.put(`http://localhost:8080/api/productos/${this.productoEdit.idProducto}`, datosProducto)
-      .subscribe({
-        next: (producto: any) => {
-          const index = this.productos.findIndex(p => p.idProducto === producto.idProducto);
-          if (index !== -1) {
-            this.productos[index] = producto;
+    if (this.productoEdit.idProducto) {
+      this.productoService.updateProducto(this.productoEdit.idProducto, datosProducto)
+        .subscribe({
+          next: (producto) => {
+            const index = this.productos.findIndex(p => p.idProducto === producto.idProducto);
+            if (index !== -1) {
+              this.productos[index] = producto;
+            }
+            this.filtrarProductos();
+            this.mostrarFormulario = false;
+            alert('Producto actualizado correctamente');
+          },
+          error: (error) => {
+            console.error('Error completo:', error);
+            alert('Error actualizando producto. Revisa la consola para más detalles.');
           }
-          this.filtrarProductos();
-          this.mostrarFormulario = false;
-          alert('Producto actualizado correctamente');
-        },
-        error: (error) => {
-          console.error('Error completo:', error);
-          alert('Error actualizando producto. Revisa la consola para más detalles.');
-        }
-      });
-  } else {
-    // CREAR nuevo producto
-    this.http.post('http://localhost:8080/api/productos', datosProducto)
-      .subscribe({
-        next: (producto: any) => {
-          this.productos.push(producto);
-          this.filtrarProductos();
-          this.mostrarFormulario = false;
-          alert('Producto creado correctamente: ' + producto.nombreProducto);
-        },
-        error: (error) => {
-          console.error('Error completo:', error);
-          alert('Error creando producto. Revisa la consola para más detalles.');
-        }
-      });
+        });
+    } else {
+      this.productoService.createProducto(datosProducto)
+        .subscribe({
+          next: (producto) => {
+            this.productos.push(producto);
+            this.filtrarProductos();
+            this.mostrarFormulario = false;
+            alert('Producto creado correctamente: ' + producto.nombreProducto);
+          },
+          error: (error) => {
+            console.error('Error completo:', error);
+            alert('Error creando producto. Revisa la consola para más detalles.');
+          }
+        });
     }
   }
 
@@ -449,7 +418,7 @@ export class CatalogoComponent implements OnInit {
 
   eliminarProducto(id: number) {
     if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      this.http.delete(`http://localhost:8080/api/productos/${id}`)
+      this.productoService.deleteProducto(id)
         .subscribe({
           next: () => {
             this.productos = this.productos.filter(p => p.idProducto !== id);

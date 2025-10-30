@@ -1,8 +1,31 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Producto } from '../models/producto.model';
 import { BaseService } from './base.service';
+
+export interface Categoria {
+  idCategoria?: number;
+  nombreCategoria: string;
+  descripcion?: string;
+  fechaCreacion?: string;
+  activo?: boolean;
+}
+
+export interface Producto {
+  idProducto?: number;
+  codigoBarras?: string;
+  nombreProducto: string;
+  descripcion?: string;
+  categoria: Categoria;
+  precioCompra: number;
+  precioVenta: number;
+  stockActual: number;
+  stockMinimo: number;
+  unidadMedida?: string;
+  fechaCreacion?: string;
+  fechaActualizacion?: string;
+  activo?: boolean;
+}
 
 @Injectable({
   providedIn: 'root'

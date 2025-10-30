@@ -1,13 +1,24 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { CategoriasComponent } from './components/categorias/categorias.component';
 import { CatalogoComponent } from './components/catalogo/catalogo.component';
+import { VentasComponent } from './components/ventas/ventas.component';
+import { ReportesComponent } from './components/reportes/reportes.component';
+import { DashboardComponent } from './components/dashboard/dashboard.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, CategoriasComponent, CatalogoComponent],
+  imports: [
+    CommonModule, 
+    FormsModule,
+    CategoriasComponent, 
+    CatalogoComponent, 
+    VentasComponent, 
+    ReportesComponent,
+    DashboardComponent
+  ],
   template: `
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -49,15 +60,15 @@ import { CatalogoComponent } from './components/catalogo/catalogo.component';
                 </a>
               </li>
               <li>
-                <a href="#" class="nav-link text-white" (click)="seccionActiva = 'proveedores'"
-                   [class.active]="seccionActiva === 'proveedores'">
-                  Proveedores
+                <a href="#" class="nav-link text-white" (click)="seccionActiva = 'ventas'"
+                  [class.active]="seccionActiva === 'ventas'">
+                  Ventas
                 </a>
               </li>
               <li>
-                <a href="#" class="nav-link text-white" (click)="seccionActiva = 'ventas'"
-                   [class.active]="seccionActiva === 'ventas'">
-                  Ventas
+                <a href="#" class="nav-link text-white" (click)="seccionActiva = 'reportes'"
+                  [class.active]="seccionActiva === 'reportes'">
+                  Reportes
                 </a>
               </li>
             </ul>
@@ -69,20 +80,7 @@ import { CatalogoComponent } from './components/catalogo/catalogo.component';
           
           <!-- Dashboard -->
           <div *ngIf="seccionActiva === 'dashboard'">
-            <div class="card">
-              <div class="card-header">
-                <h4>Bienvenido al Sistema</h4>
-              </div>
-              <div class="card-body">
-                <p>Selecciona una opcion del menu lateral para comenzar.</p>
-                <button class="btn btn-primary me-2" (click)="seccionActiva = 'catalogo'">
-                  Gestionar Catalogo
-                </button>
-                <button class="btn btn-outline-success" (click)="seccionActiva = 'categorias'">
-                  Gestionar Categorias
-                </button>
-              </div>
-            </div>
+            <app-dashboard></app-dashboard>
           </div>
 
           <!-- Catalogo de Productos -->
@@ -95,17 +93,15 @@ import { CatalogoComponent } from './components/catalogo/catalogo.component';
             <app-categorias></app-categorias>
           </div>
 
-          <!-- Otras secciones -->
-          <div *ngIf="seccionActiva === 'proveedores'" class="text-center py-5">
-            <h4>Modulo de Proveedores</h4>
-            <p class="text-muted">Proximamente...</p>
+          <!-- Ventas -->
+          <div *ngIf="seccionActiva === 'ventas'">
+            <app-ventas></app-ventas>
           </div>
 
-          <div *ngIf="seccionActiva === 'ventas'" class="text-center py-5">
-            <h4>Modulo de Ventas</h4>
-            <p class="text-muted">Proximamente...</p>
+          <!-- Reportes -->
+          <div *ngIf="seccionActiva === 'reportes'">
+            <app-reportes></app-reportes>
           </div>
-
         </div>
       </div>
     </div>
@@ -123,5 +119,5 @@ import { CatalogoComponent } from './components/catalogo/catalogo.component';
   `]
 })
 export class AppComponent {
-  seccionActiva = 'catalogo'; // Empezar en catalogo
+  seccionActiva = 'dashboard';
 }
