@@ -589,7 +589,7 @@ export class VentasComponent implements OnInit {
   }
 
   formatPrecio(precio: number): string {
-    return `$${precio.toFixed(2)}`;
+    return `Bs ${precio.toFixed(2)}`;
   }
 
   formatFecha(fecha: string | undefined): string {

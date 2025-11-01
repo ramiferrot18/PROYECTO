@@ -89,7 +89,7 @@ import { Subscription } from 'rxjs';
                 <div class="col-md-3 mb-3">
                   <label class="form-label">Precio de Venta *</label>
                   <div class="input-group">
-                    <span class="input-group-text">$</span>
+                    <span class="input-group-text">Bs</span>
                     <input 
                       type="number" 
                       class="form-control" 
@@ -106,7 +106,7 @@ import { Subscription } from 'rxjs';
                 <div class="col-md-3 mb-3">
                   <label class="form-label">Costo de Compra *</label>
                   <div class="input-group">
-                    <span class="input-group-text">$</span>
+                    <span class="input-group-text">Bs</span>
                     <input 
                       type="number" 
                       class="form-control" 
@@ -337,7 +337,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   }
 
   formatPrecio(precio: number): string {
-    return `$${precio.toFixed(2)}`;
+    return `Bs ${precio.toFixed(2)}`;
   }
 
   filtrarProductos() {

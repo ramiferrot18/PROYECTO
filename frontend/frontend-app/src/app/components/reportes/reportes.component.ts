@@ -138,7 +138,7 @@ interface VentaPorDia {
                       <div class="bg-primary rounded-top position-relative" 
                            [style.height.px]="getAlturaColumna(dia.totalVentas)"
                            style="width: 35px; transition: height 0.3s ease; min-height: 5px;"
-                           [title]="'$' + formatPrecio(dia.totalVentas)">
+                           [title]="formatPrecio(dia.totalVentas)">
                         <!-- Valor sobre la barra -->
                         <div class="position-absolute top-0 start-50 translate-middle-x mt-1">
                           <small class="text-dark fw-bold" style="font-size: 10px;">
@@ -426,12 +426,12 @@ export class ReportesComponent implements OnInit {
   }
 
   formatPrecio(precio: number): string {
-    return `$${precio.toFixed(2)}`;
+    return `Bs ${precio.toFixed(2)}`;
   }
 
   formatPrecioCorta(precio: number): string {
-    if (precio >= 1000) return `$${(precio/1000).toFixed(0)}k`;
-    return `$${precio.toFixed(0)}`;
+    if (precio >= 1000) return `Bs ${(precio/1000).toFixed(0)}k`;
+    return `Bs ${precio.toFixed(0)}`;
   }
 
   formatFechaCorta(fecha: string): string {
