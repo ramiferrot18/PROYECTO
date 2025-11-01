@@ -2,9 +2,13 @@ package com.inventario.sistema.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 @Entity
 @Table(name = "detalle_ventas")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "venta"})
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DetalleVenta {
     
     @Id
@@ -12,11 +16,11 @@ public class DetalleVenta {
     @Column(name = "id_detalle")
     private Long idDetalle;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_venta", nullable = false)
     private Venta venta;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_producto", nullable = false)
     private Producto producto;
     

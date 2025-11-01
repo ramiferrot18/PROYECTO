@@ -5,9 +5,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "ventas")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Venta {
     
     @Id
@@ -36,7 +38,10 @@ public class Venta {
     @Column(length = 100)
     private String usuario;
     
-    @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Column(name = "metodo_pago", length = 20)
+    private String metodoPago;
+
+    @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<DetalleVenta> detalles = new ArrayList<>();
     
     // Constructores
@@ -83,4 +88,7 @@ public class Venta {
     
     public List<DetalleVenta> getDetalles() { return detalles; }
     public void setDetalles(List<DetalleVenta> detalles) { this.detalles = detalles; }
+
+    public String getMetodoPago() { return metodoPago; }
+    public void setMetodoPago(String metodoPago) { this.metodoPago = metodoPago; }
 }

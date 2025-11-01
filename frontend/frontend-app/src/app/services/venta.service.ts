@@ -4,9 +4,16 @@ import { Observable } from 'rxjs';
 import { BaseService } from './base.service';
 import { Producto } from './producto.service';
 
+export interface DetalleProducto {
+  idProducto: number;
+  nombreProducto?: string;
+  precioVenta?: number;
+  precioCompra?: number;
+}
+
 export interface DetalleVenta {
   idDetalle?: number;
-  producto: any;
+  producto: DetalleProducto;
   cantidad: number;
   precioUnitario: number;
   importeTotal: number;

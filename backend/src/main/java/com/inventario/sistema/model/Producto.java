@@ -24,12 +24,13 @@ public class Producto {
     @Column(columnDefinition = "TEXT")
     private String descripcion;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_categoria", nullable = false)
     private Categoria categoria;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_proveedor")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Proveedor proveedor;
     
     @Column(name = "precio_compra", nullable = false, precision = 10, scale = 2)

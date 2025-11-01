@@ -41,4 +41,12 @@ public class VentaController {
     public void deleteVenta(@PathVariable Long id) {
         ventaService.deleteVenta(id);
     }
+
+    @GetMapping("/filtro")
+    public List<Venta> getVentasPorFecha(
+        @RequestParam String fechaInicio,
+        @RequestParam String fechaFin
+    ) {
+        return ventaService.getVentasPorFecha(fechaInicio, fechaFin);
+    }
 }

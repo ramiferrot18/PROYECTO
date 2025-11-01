@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductoService, Producto, Categoria } from '../../services/producto.service';
 import { CategoriaService } from '../../services/categoria.service';
+import { ActualizacionService } from '../../services/actualizacion.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-catalogo',
@@ -258,7 +260,7 @@ import { CategoriaService } from '../../services/categoria.service';
     </div>
   `
 })
-export class CatalogoComponent implements OnInit {
+export class CatalogoComponent implements OnInit, OnDestroy {
   productos: Producto[] = [];
   productosFiltrados: Producto[] = [];
   categorias: Categoria[] = [];
@@ -269,10 +271,26 @@ export class CatalogoComponent implements OnInit {
   mostrarFormulario: boolean = false;
   cargando: boolean = false;
 
+  private actualizacionSuscripcion: Subscription;
+
   constructor(
     private productoService: ProductoService,
-    private categoriaService: CategoriaService
-  ) {}
+    private categoriaService: CategoriaService,
+    private actualizacionService: ActualizacionService
+  ) {
+    // Suscribirse a las actualizaciones de productos
+    this.actualizacionSuscripcion = this.actualizacionService.actualizacionProductos$.subscribe(() => {
+      setTimeout(() => {
+        this.cargarDatos();
+      }, 0);
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.actualizacionSuscripcion) {
+      this.actualizacionSuscripcion.unsubscribe();
+    }
+  }
 
   ngOnInit() {
     this.cargarDatos();

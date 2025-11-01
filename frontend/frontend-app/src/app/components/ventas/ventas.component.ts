@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ProductoService, Producto, Categoria } from '../../services/producto.service';
 import { CategoriaService } from '../../services/categoria.service';
 import { VentaService, Venta, DetalleVenta } from '../../services/venta.service';
+import { ActualizacionService } from '../../services/actualizacion.service';
 
 interface ItemVenta {
   producto: Producto;
@@ -27,14 +28,12 @@ interface ItemVenta {
         </div>
       </div>
       <div class="card-body">
-
         <!-- FORMULARIO DE NUEVA VENTA -->
         <div *ngIf="mostrarFormularioVenta" class="card mb-4 border-primary">
           <div class="card-header bg-primary text-white">
             <h6 class="mb-0">🛒 Nueva Venta</h6>
           </div>
           <div class="card-body">
-            
             <!-- Búsqueda de Productos -->
             <div class="row mb-4">
               <div class="col-md-8">
@@ -190,7 +189,6 @@ interface ItemVenta {
             <div *ngIf="carrito.length === 0" class="text-center py-4">
               <p class="text-muted">El carrito está vacío. Busca productos y haz clic en ellos para agregarlos.</p>
             </div>
-
           </div>
         </div>
 
@@ -200,11 +198,28 @@ interface ItemVenta {
             <h6 class="mb-0">📋 Historial de Ventas</h6>
           </div>
           <div class="card-body">
-            
             <!-- Filtros de historial -->
             <div class="row mb-3">
               <div class="col-md-4">
-                <input type="date" class="form-control" [(ngModel)]="fechaFiltro" (change)="cargarVentas()">
+                <div class="input-group">
+                  <span class="input-group-text">📅</span>
+                  <input 
+                    type="date" 
+                    class="form-control" 
+                    [(ngModel)]="fechaFiltro" 
+                    (change)="cargarVentas()"
+                    [max]="fechaMaxima">
+                  <button 
+                    class="btn btn-outline-secondary" 
+                    type="button"
+                    (click)="limpiarFiltroFecha()"
+                    *ngIf="fechaFiltro">
+                    ❌
+                  </button>
+                </div>
+                <small class="text-muted" *ngIf="fechaFiltro">
+                  Mostrando ventas del: {{ formatFecha(fechaFiltro) }}
+                </small>
               </div>
               <div class="col-md-4">
                 <button class="btn btn-outline-primary w-100" (click)="cargarVentas()">
@@ -241,22 +256,24 @@ interface ItemVenta {
                       {{ formatHora(venta.fechaVenta) }}
                     </td>
                     <td>
-                      <div *ngIf="venta.detalles && venta.detalles.length > 0">
-                        <div *ngFor="let detalle of venta.detalles" class="mb-1">
-                          <small>
-                            <strong>{{ detalle.cantidad }}x</strong> 
-                            {{ getNombreProducto(detalle) }}
+                      <div>
+                        <ng-container *ngIf="venta.detalles && venta.detalles.length > 0; else noDetalles">
+                          <small *ngFor="let detalle of venta.detalles" class="d-block">
+                            <span class="badge bg-secondary me-1">{{ detalle.cantidad }}×</span>
+                            <strong [class.text-danger]="!detalle.producto || !detalle.producto.nombreProducto">
+                              {{ detalle.producto && detalle.producto.nombreProducto || 'Producto no disponible' }}
+                            </strong>
                             <span class="text-muted">({{ formatPrecio(detalle.precioUnitario) }})</span>
                           </small>
-                        </div>
-                      </div>
-                      <div *ngIf="!venta.detalles || venta.detalles.length === 0">
-                        <small class="text-muted">Cargando productos...</small>
+                        </ng-container>
+                        <ng-template #noDetalles>
+                          <small class="text-muted">Sin productos</small>
+                        </ng-template>
                       </div>
                     </td>
                     <td>
                       <span [class]="getBadgeClass(venta.metodoPago || 'EFECTIVO')">
-                        {{ getMetodoPagoTexto(venta.metodoPago || 'EFECTIVO') }}
+                        {{ getMetodoPagoTexto(venta.metodoPago || 'EFECTIVO', venta) }}
                       </span>
                     </td>
                     <td>
@@ -279,10 +296,8 @@ interface ItemVenta {
               </div>
               <p class="mt-2">Cargando ventas...</p>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
   `,
@@ -300,6 +315,10 @@ interface ItemVenta {
       font-size: 0.75em;
       font-weight: 500;
       border-radius: 0.375rem;
+      white-space: normal;
+      text-align: left;
+      display: inline-block;
+      line-height: 1.4;
     }
     .badge-efectivo { 
       background-color: #28a745 !important; 
@@ -313,6 +332,12 @@ interface ItemVenta {
       background-color: #6f42c1 !important; 
       color: white !important;
     }
+    td small {
+      display: block;
+      line-height: 1.4;
+      color: #333;
+      font-size: 0.85em;
+    }
   `]
 })
 export class VentasComponent implements OnInit {
@@ -324,14 +349,16 @@ export class VentasComponent implements OnInit {
   ventas: Venta[] = [];
   terminoBusquedaProducto: string = '';
   categoriaFiltro: string = '';
-  fechaFiltro: string = this.getFechaHoy();
+  fechaFiltro: string = '';
+  fechaMaxima: string = this.getFechaHoy();
   mostrarFormularioVenta: boolean = false;
   cargando: boolean = false;
 
   constructor(
     private productoService: ProductoService,
     private categoriaService: CategoriaService,
-    private ventaService: VentaService
+    private ventaService: VentaService,
+    private actualizacionService: ActualizacionService
   ) {}
 
   ngOnInit() {
@@ -366,38 +393,41 @@ export class VentasComponent implements OnInit {
 
   cargarVentas() {
     this.cargando = true;
+    console.log('Iniciando carga de ventas...');
     
-    this.ventaService.getVentas().subscribe({
+    const observable = this.fechaFiltro ? 
+      this.ventaService.getVentasPorFecha(this.fechaFiltro, this.fechaFiltro) :
+      this.ventaService.getVentas();
+
+    observable.subscribe({
       next: (ventas) => {
+        console.log('Ventas recibidas:', ventas);
         this.ventas = ventas.map((venta) => {
-          const metodoPago = venta.metodoPago || 'EFECTIVO';
-          
-          let detalles: DetalleVenta[] = [];
-          
-          if (venta.detalles && Array.isArray(venta.detalles)) {
-            detalles = venta.detalles.map((detalle: any) => ({
-              idDetalle: detalle.idDetalle,
-              cantidad: detalle.cantidad,
-              precioUnitario: detalle.precioUnitario,
-              importeTotal: detalle.importeTotal,
-              producto: detalle.producto || { 
-                nombreProducto: 'Producto no disponible',
-                categoria: { nombreCategoria: 'Sin categoría' },
-                precioCompra: 0,
-                precioVenta: 0,
-                stockActual: 0,
-                stockMinimo: 0
-              }
-            }));
-          }
-          
+          console.log('Venta original:', venta);
           return {
             ...venta,
-            metodoPago: metodoPago,
-            detalles: detalles
+            metodoPago: venta.metodoPago || 'EFECTIVO',
+            detalles: (venta.detalles || []).map(detalle => {
+              console.log('Detalle original:', detalle);
+              const detalleFormateado = {
+                idDetalle: detalle.idDetalle,
+                cantidad: detalle.cantidad,
+                precioUnitario: detalle.precioUnitario,
+                importeTotal: detalle.importeTotal,
+                  producto: {
+                  ...detalle.producto,
+                  nombreProducto: detalle.producto?.nombreProducto || 'Producto no disponible',
+                  precioVenta: detalle.producto?.precioVenta || 0,
+                  precioCompra: detalle.producto?.precioCompra || 0
+                }
+              };
+              console.log('Detalle formateado:', detalleFormateado);
+              return detalleFormateado;
+            })
           };
         });
         
+        console.log('Ventas procesadas:', this.ventas);
         this.cargando = false;
       },
       error: (error) => {
@@ -485,9 +515,20 @@ export class VentasComponent implements OnInit {
   }
 
   validarVenta(): boolean {
-    return this.carrito.length > 0 && 
-           !!this.ventaActual.metodoPago &&
-           this.calcularTotal() > 0;
+    const total = this.calcularTotal();
+    if (!this.carrito.length || !this.ventaActual.metodoPago || total <= 0) return false;
+    
+    switch(this.ventaActual.metodoPago) {
+      case 'EFECTIVO':
+        return (this.ventaActual.pagoEfectivo || 0) >= total;
+      case 'TARJETA':
+        return (this.ventaActual.pagoTarjeta || 0) >= total;
+      case 'MIXTO':
+        const totalPagado = (this.ventaActual.pagoEfectivo || 0) + (this.ventaActual.pagoTarjeta || 0);
+        return totalPagado >= total;
+      default:
+        return false;
+    }
   }
 
   procesarVenta() {
@@ -503,21 +544,34 @@ export class VentasComponent implements OnInit {
       pagoTarjeta: this.ventaActual.pagoTarjeta || 0,
       cambio: this.ventaActual.cambio || 0,
       usuario: 'CAJERO',
-      detalles: this.carrito.map(item => ({
-        producto: item.producto,
-        cantidad: item.cantidad,
-        precioUnitario: item.precioUnitario,
-        importeTotal: item.importe
-      }))
+      detalles: this.carrito
+        .filter(item => item.producto?.idProducto != null)
+        .map(item => ({
+          producto: {
+            idProducto: item.producto.idProducto!,
+            nombreProducto: item.producto.nombreProducto,
+            precioVenta: item.producto.precioVenta,
+            precioCompra: item.producto.precioCompra
+          },
+          cantidad: item.cantidad,
+          precioUnitario: item.precioUnitario,
+          importeTotal: item.importe
+        }))
     };
 
     this.ventaService.createVenta(ventaData).subscribe({
       next: (venta) => {
-        alert('✅ Venta procesada correctamente!');
-        this.limpiarCarrito();
-        this.mostrarFormularioVenta = false;
-        this.cargarVentas();
-        this.cargarDatosIniciales();
+        // Primero notificamos la actualización
+        this.actualizacionService.notificarActualizacionProductos();
+        
+        // Luego actualizamos la vista local
+        setTimeout(() => {
+          this.limpiarCarrito();
+          this.mostrarFormularioVenta = false;
+          this.cargarVentas();
+          this.cargarDatosIniciales();
+          alert('✅ Venta procesada correctamente!');
+        }, 100);
       },
       error: (error) => {
         console.error('Error procesando venta:', error);
@@ -540,7 +594,26 @@ export class VentasComponent implements OnInit {
 
   formatFecha(fecha: string | undefined): string {
     if (!fecha) return '';
-    return new Date(fecha).toLocaleDateString('es-MX');
+
+    // Evitar que 'YYYY-MM-DD' sea interpretado como UTC (lo que desplaza un día en zonas negativas)
+    try {
+      if (fecha.includes('T')) {
+        return new Date(fecha).toLocaleDateString('es-MX');
+      }
+
+      const parts = fecha.split('-');
+      if (parts.length >= 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return new Date(y, m, d).toLocaleDateString('es-MX');
+      }
+
+      return new Date(fecha).toLocaleDateString('es-MX');
+    } catch (e) {
+      console.warn('Formato de fecha desconocido en formatFecha:', fecha, e);
+      return fecha as string;
+    }
   }
 
   formatHora(fecha: string | undefined): string {
@@ -555,11 +628,15 @@ export class VentasComponent implements OnInit {
     return new Date().toISOString().split('T')[0];
   }
 
-  getMetodoPagoTexto(metodo: string): string {
+  getMetodoPagoTexto(metodo: string, venta?: Venta): string {
     switch(metodo) {
-      case 'EFECTIVO': return '💵 Efectivo';
-      case 'TARJETA': return '💳 Tarjeta';
-      case 'MIXTO': return '💰 Mixto';
+      case 'EFECTIVO': return `💵 Efectivo`;
+      case 'TARJETA': return `💳 Tarjeta`;
+      case 'MIXTO': 
+        if (venta) {
+          return `💰 Mixto (💵 ${this.formatPrecio(venta.pagoEfectivo || 0)} + 💳 ${this.formatPrecio(venta.pagoTarjeta || 0)})`;
+        }
+        return '💰 Mixto';
       default: return metodo;
     }
   }
@@ -573,11 +650,30 @@ export class VentasComponent implements OnInit {
     }
   }
 
-  getNombreProducto(detalle: DetalleVenta): string {
-    if (detalle.producto && detalle.producto.nombreProducto) {
-      return detalle.producto.nombreProducto;
+  getNombreProducto(detalle: any): string {
+    if (!detalle || !detalle.producto) {
+      console.log('Detalle sin producto:', detalle);
+      return 'Producto no disponible';
     }
-    return 'Producto no disponible';
+    console.log('Detalle con producto:', detalle);
+    return detalle.producto.nombreProducto || 'Producto no disponible';
+  }
+
+  formatDetallesVenta(detalles: DetalleVenta[]): string {
+    if (!detalles || detalles.length === 0) return '';
+    
+    return detalles
+      .map(detalle => {
+        const nombreProducto = this.getNombreProducto(detalle);
+        const precioFormateado = this.formatPrecio(detalle.precioUnitario);
+        return `${detalle.cantidad}× ${nombreProducto} (${precioFormateado})`;
+      })
+      .join('\n');
+  }
+
+  limpiarFiltroFecha() {
+    this.fechaFiltro = '';
+    this.cargarVentas();
   }
 
   mostrarNuevaVenta() {

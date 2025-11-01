@@ -253,8 +253,9 @@ export class ReportesComponent implements OnInit {
 
   cargarReportes() {
     this.cargando = true;
+    console.log('Cargando reportes desde:', this.fechaInicio, 'hasta:', this.fechaFin);
 
-    this.ventaService.getVentas().subscribe({
+    this.ventaService.getVentasPorFecha(this.fechaInicio, this.fechaFin).subscribe({
       next: (ventas) => {
         this.ventas = ventas;
         this.filtrarVentasPorFecha();
@@ -271,33 +272,75 @@ export class ReportesComponent implements OnInit {
   }
 
   filtrarVentasPorFecha() {
+    console.log('Filtrando ventas por fecha');
+    this.ventasFiltradas = this.ventas;
+
     if (!this.fechaInicio || !this.fechaFin) {
-      this.ventasFiltradas = this.ventas;
+      console.log('No hay fechas de filtro, usando todas las ventas');
       return;
     }
 
-    const inicio = new Date(this.fechaInicio);
-    const fin = new Date(this.fechaFin);
-    fin.setHours(23, 59, 59, 999);
+    // Crear fechas en hora local a partir de YYYY-MM-DD para evitar el parsing como UTC
+    const [yi, mi, di] = this.fechaInicio.split('-').map(s => parseInt(s, 10));
+    const [yf, mf, df] = this.fechaFin.split('-').map(s => parseInt(s, 10));
+
+    const inicio = new Date(yi, mi - 1, di, 0, 0, 0, 0);
+    const fin = new Date(yf, mf - 1, df, 23, 59, 59, 999);
+
+    console.log('Fecha inicio original:', this.fechaInicio, '->', inicio);
+    console.log('Fecha fin original:', this.fechaFin, '->', fin);
 
     this.ventasFiltradas = this.ventas.filter(venta => {
-      if (!venta.fechaVenta) return false;
+      if (!venta.fechaVenta) {
+        console.log('Venta sin fecha:', venta);
+        return false;
+      }
       const fechaVenta = new Date(venta.fechaVenta);
-      return fechaVenta >= inicio && fechaVenta <= fin;
+      const incluir = fechaVenta >= inicio && fechaVenta <= fin;
+      console.log('Fecha venta:', fechaVenta, 'Incluir:', incluir);
+      return incluir;
     });
   }
 
   calcularReporteIngresos() {
+    console.log('Calculando ingresos para', this.ventasFiltradas.length, 'ventas');
     let ingresosTotales = 0;
     let costosTotales = 0;
 
     this.ventasFiltradas.forEach(venta => {
-      ingresosTotales += venta.totalVenta;
-      venta.detalles.forEach(detalle => {
-        if (detalle.producto && detalle.producto.precioCompra) {
-          costosTotales += detalle.producto.precioCompra * detalle.cantidad;
-        }
-      });
+      console.log('Procesando venta:', venta);
+      console.log('Total venta:', venta.totalVenta);
+      const totalVenta = typeof venta.totalVenta === 'string' ? 
+        parseFloat(venta.totalVenta) : 
+        (venta.totalVenta || 0);
+      
+      ingresosTotales += totalVenta;
+      console.log('Ingresos acumulados:', ingresosTotales);
+      
+      if (venta.detalles && Array.isArray(venta.detalles)) {
+        venta.detalles.forEach(detalle => {
+          console.log('Procesando detalle:', detalle);
+          console.log('Producto en detalle:', detalle.producto);
+          
+          if (detalle.producto && typeof detalle.producto.precioCompra !== 'undefined') {
+            const precioCompra = typeof detalle.producto.precioCompra === 'string' ? 
+              parseFloat(detalle.producto.precioCompra) : 
+              detalle.producto.precioCompra;
+              
+            const cantidad = typeof detalle.cantidad === 'string' ? 
+              parseInt(detalle.cantidad) : 
+              (detalle.cantidad || 0);
+              
+            const costo = precioCompra * cantidad;
+            costosTotales += costo;
+            
+            console.log('Precio compra:', precioCompra);
+            console.log('Cantidad:', cantidad);
+            console.log('Costo calculado:', costo);
+            console.log('Costos acumulados:', costosTotales);
+          }
+        });
+      }
     });
 
     const gananciaNeta = ingresosTotales - costosTotales;
@@ -312,13 +355,23 @@ export class ReportesComponent implements OnInit {
   }
 
   calcularProductosMasVendidos() {
+    console.log('Calculando productos más vendidos');
     const productosMap = new Map<string, ProductoVendido>();
 
     this.ventasFiltradas.forEach(venta => {
+      if (!venta.detalles) return;
+      
       venta.detalles.forEach(detalle => {
-        const nombreProducto = detalle.producto?.nombreProducto || 'Producto Desconocido';
-        const cantidad = detalle.cantidad;
-        const ingresos = detalle.importeTotal;
+        if (!detalle.producto) {
+          console.log('Detalle sin producto:', detalle);
+          return;
+        }
+
+        const nombreProducto = detalle.producto.nombreProducto || 'Producto Desconocido';
+        const cantidad = Number(detalle.cantidad || 0);
+        const ingresos = Number(detalle.importeTotal || 0);
+
+        console.log('Procesando venta de producto:', nombreProducto, cantidad, ingresos);
 
         if (productosMap.has(nombreProducto)) {
           const productoExistente = productosMap.get(nombreProducto)!;
@@ -344,16 +397,24 @@ export class ReportesComponent implements OnInit {
 
     this.ventasFiltradas.forEach(venta => {
       if (!venta.fechaVenta) return;
-      const fecha = new Date(venta.fechaVenta).toISOString().split('T')[0];
+
+      // Usar fecha local para agrupar (evitar desplazamientos por UTC)
+      const fv = new Date(venta.fechaVenta);
+      const y = fv.getFullYear();
+      const m = String(fv.getMonth() + 1).padStart(2, '0');
+      const d = String(fv.getDate()).padStart(2, '0');
+      const fecha = `${y}-${m}-${d}`;
+
+      const totalVentaNum = typeof venta.totalVenta === 'string' ? parseFloat(venta.totalVenta) : Number(venta.totalVenta || 0);
 
       if (ventasPorDiaMap.has(fecha)) {
         const diaExistente = ventasPorDiaMap.get(fecha)!;
-        diaExistente.totalVentas += venta.totalVenta;
+        diaExistente.totalVentas += totalVentaNum;
         diaExistente.cantidadVentas += 1;
       } else {
         ventasPorDiaMap.set(fecha, {
           fecha: fecha,
-          totalVentas: venta.totalVenta,
+          totalVentas: totalVentaNum,
           cantidadVentas: 1
         });
       }
@@ -375,10 +436,38 @@ export class ReportesComponent implements OnInit {
 
   formatFechaCorta(fecha: string): string {
     if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES', { 
-      day: '2-digit', 
-      month: '2-digit' 
-    });
+
+    // Manejar dos formatos comunes:
+    // - Fecha completa con hora (ISO): '2025-11-01T12:34:56Z' -> se puede parsear directamente
+    // - Fecha local en formato 'YYYY-MM-DD' generada internamente -> crear Date en hora local
+    try {
+      if (fecha.includes('T')) {
+        return new Date(fecha).toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit'
+        });
+      }
+
+      const parts = fecha.split('-');
+      if (parts.length >= 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return new Date(y, m, d).toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit'
+        });
+      }
+
+      // Fallback
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit'
+      });
+    } catch (e) {
+      console.warn('Formato de fecha desconocido en formatFechaCorta:', fecha, e);
+      return fecha;
+    }
   }
 
   getAlturaColumna(totalVentas: number): number {
